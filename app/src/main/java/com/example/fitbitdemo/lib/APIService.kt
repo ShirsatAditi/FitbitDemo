@@ -1,13 +1,12 @@
 package com.example.fitbitdemo.lib
 
 import com.example.fitbitdemo.Model.AccessToken
+import com.example.fitbitdemo.Model.UserData
 import okhttp3.*
 import retrofit2.Call
 import retrofit2.Retrofit.Builder
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.Field
-import retrofit2.http.FormUrlEncoded
-import retrofit2.http.POST
+import retrofit2.http.*
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
@@ -63,7 +62,12 @@ interface APIService {
         private fun getAuthClient(): OkHttpClient {
             val httpTimeout: Long = 20
             val okHttpClientBuilder = OkHttpClient.Builder()
-            okHttpClientBuilder.addInterceptor(BasicAuthInterceptor(Constants.CLIENT_ID, Constants.CLIENT_SECRET))
+            okHttpClientBuilder.addInterceptor(
+                BasicAuthInterceptor(
+                    Constants.CLIENT_ID,
+                    Constants.CLIENT_SECRET
+                )
+            )
             okHttpClientBuilder.connectTimeout(httpTimeout, TimeUnit.SECONDS)
             okHttpClientBuilder.readTimeout(httpTimeout, TimeUnit.SECONDS)
             return okHttpClientBuilder.build()
@@ -77,7 +81,10 @@ interface APIService {
         @Field("grant_type") grant_type: String,
         @Field("redirect_uri") redirect_uri: String,
         @Field("code") code: String
-    ):Call<AccessToken>
+    ): Call<AccessToken>
+
+    @GET
+    fun getUserData(@Url url:String,@Header("Authorization") Authorization: String): Call<UserData>
 }
 
 class BasicAuthInterceptor(user: String?, password: String?) :
