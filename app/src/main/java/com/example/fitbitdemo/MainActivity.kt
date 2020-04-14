@@ -1,11 +1,13 @@
 package com.example.fitbitdemo
 
+import android.content.DialogInterface
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.fitbitdemo.Model.AccessToken
@@ -36,6 +38,14 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        swipe_refresh.setOnRefreshListener {
+            if (!Constants.isNetworkAvailable(this)) {
+                showNoNetworkDialog()
+            } else {
+                web_View.loadUrl(EXTRA_AUTH_URL)
+            }
+        }
+
         web_View.settings.javaScriptEnabled = true
 
         web_View.webViewClient = object : WebViewClient() {
@@ -44,7 +54,7 @@ class MainActivity : AppCompatActivity() {
                 request: String?
             ): Boolean {
                 if ((request ?: "").startsWith(REDIRECT_URL)) {
-                    val uri = Uri.parse(request)
+                    var uri = Uri.parse(request)
 
                     val code = uri.getQueryParameter(CONST_CODE) ?: ""
 
@@ -67,24 +77,58 @@ class MainActivity : AppCompatActivity() {
                                     response: Response<AccessToken>
                                 ) {
                                     Log.e("SUCESSSSSs", response.body()?.access_token ?: "")
+
+                                    val cal = Calendar.getInstance()
+                                    val format = SimpleDateFormat("yyyy-MM-dd")
+                                    val date = format.format(cal.time)
+                                    val url = String.format(
+                                        "%s%s%s%s%s",
+                                        "https://api.fitbit.com/1/user/",
+                                        response.body()?.user_id,
+                                        "/activities/date/",
+                                        date,
+                                        ".json"
+                                    )
+
+                                    APIService.getBaseUrl("https://api.fitbit.com/1/user/")
+                                        .getUserData(url, String.format("%s %s", response.body()?.token_type, response.body()?.access_token))
+                                        .enqueue(object : Callback<UserData> {
+                                            override fun onFailure(call: Call<UserData>, t: Throwable) {
+                                            }
+
+                                            override fun onResponse(
+                                                call: Call<UserData>,
+                                                response: Response<UserData>
+                                            ) {
+                                                Log.e("USER_DATA", response.body().toString())
+
+                                                setUserData(response.body())
+                                            }
+                                        })
                                 }
                             })
                     } else {
+                        if (uri.toString().contains("#"))
+                            uri = Uri.parse(uri.toString().replace("#", "?"))
                         val accessToken = uri.getQueryParameter(CONST_ACCESS_TOKEN) ?: ""
                         val tokenType = uri.getQueryParameter(CONST_TOKEN_TYPE) ?: ""
 
                         val userId = uri.getQueryParameter(CONST_USER_ID) ?: ""
                         val cal = Calendar.getInstance()
-                        val format = SimpleDateFormat("yyyy-mm-dd")
+                        val format = SimpleDateFormat("yyyy-MM-dd")
                         val date = format.format(cal.time)
 
                         val url = String.format(
                             "%s%s%s%s%s",
-                            "https://api.fitbit.com/1/user/", userId, "/activities/date/", date,"/"
+                            "https://api.fitbit.com/1/user/",
+                            userId,
+                            "/activities/date/",
+                            date,
+                            ".json"
                         )
 
-                        APIService.getBaseUrl(url)
-                            .getUserData(url,String.format("%s %s", tokenType, accessToken))
+                        APIService.getBaseUrl("https://api.fitbit.com/1/user/")
+                            .getUserData(url, String.format("%s %s", tokenType, accessToken))
                             .enqueue(object : Callback<UserData> {
                                 override fun onFailure(call: Call<UserData>, t: Throwable) {
                                 }
@@ -94,39 +138,75 @@ class MainActivity : AppCompatActivity() {
                                     response: Response<UserData>
                                 ) {
                                     Log.e("USER_DATA", response.body().toString())
-                                    
+
                                     setUserData(response.body())
                                 }
                             })
                     }
-                } else {
-                    web_View?.loadUrl(request)
+                }else{
+                    if (!Constants.isNetworkAvailable(applicationContext)) {
+                        showNoNetworkDialog()
+                    } else {
+                        web_View.loadUrl(request)
+                    }
                 }
                 return true
             }
         }
 
-        web_View.loadUrl(EXTRA_AUTH_URL)
+        if (!Constants.isNetworkAvailable(applicationContext)) {
+            showNoNetworkDialog()
+        } else {
+            web_View.loadUrl(EXTRA_AUTH_URL)
+        }
     }
 
     private fun setUserData(body: UserData?) {
 
-        web_View.visibility = View.GONE
+        rl_webView.visibility = View.GONE
         sv_userData.visibility = View.VISIBLE
 
-        tv_activeScore.text = body?.summary?.activeScore
-        tv_activityCalories.text = body?.summary?.activityCalories
-        tv_caloriesBMR.text = body?.summary?.caloriesBMR
-        tv_caloriesOut.text = body?.summary?.caloriesOut
+        tv_activeScore.text = String.format("%s %s", "Activity Score", body?.summary?.activeScore)
+        tv_activityCalories.text =
+            String.format("%s %s", "Activity Calories", body?.summary?.activityCalories)
+        tv_caloriesBMR.text =
+            String.format("%s %s", "Activity Calories BMR", body?.summary?.caloriesBMR)
+        tv_caloriesOut.text =
+            String.format("%s %s", "Activity Calories Out", body?.summary?.caloriesOut)
 
-        tv_fairlyActiveMinutes.text = body?.fairlyActiveMinutes
-        tv_lightlyActiveMinutes.text = body?.lightlyActiveMinutes
-        tv_marginalCalories.text = body?.marginalCalories
-        tv_sedentaryMinutes.text = body?.sedentaryMinutes
-        tv_steps.text = body?.steps
-        tv_veryActiveMinutes.text = body?.veryActiveMinutes
+        tv_fairlyActiveMinutes.text =
+            String.format("%s %s", "Faily Activity Minutes", body?.fairlyActiveMinutes)
+        tv_lightlyActiveMinutes.text =
+            String.format("%s %s", "Lightly Activity Minutes", body?.lightlyActiveMinutes)
+        tv_marginalCalories.text =
+            String.format("%s %s", "Marginal calories", body?.marginalCalories)
+        tv_sedentaryMinutes.text =
+            String.format("%s %s", "sendentary  Minutes", body?.sedentaryMinutes)
+        tv_steps.text = String.format("%s %s", "Steps", body?.steps)
+        tv_veryActiveMinutes.text =
+            String.format("%s %s", "very Activity Minutes", body?.veryActiveMinutes)
 
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = DistanceAdapter(body?.summary?.distances ?: arrayListOf())
+    }
+
+    fun showNoNetworkDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Network")
+            .setMessage("Please check your network connection?")
+            // Specifying a listener allows you to take an action before dismissing the dialog.
+// The dialog is automatically dismissed when a dialog button is clicked.
+            .setPositiveButton(android.R.string.yes,
+                DialogInterface.OnClickListener { dialog, which ->
+                    // Continue with delete operation
+                }) // A null listener allows the button to dismiss the dialog and take no further action.
+            .setNegativeButton("Retry", DialogInterface.OnClickListener { dialog, which ->
+                if (!Constants.isNetworkAvailable(this)) {
+                    showNoNetworkDialog()
+                } else {
+                    web_View.loadUrl(EXTRA_AUTH_URL)
+                }
+            })
+            .show()
     }
 }
