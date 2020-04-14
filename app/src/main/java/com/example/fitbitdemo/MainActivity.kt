@@ -3,9 +3,11 @@ package com.example.fitbitdemo
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.fitbitdemo.Model.AccessToken
 import com.example.fitbitdemo.Model.UserData
 import com.example.fitbitdemo.lib.APIService
@@ -69,7 +71,7 @@ class MainActivity : AppCompatActivity() {
                             })
                     } else {
                         val accessToken = uri.getQueryParameter(CONST_ACCESS_TOKEN) ?: ""
-                        val token_type = uri.getQueryParameter(CONST_TOKEN_TYPE) ?: ""
+                        val tokenType = uri.getQueryParameter(CONST_TOKEN_TYPE) ?: ""
 
                         val userId = uri.getQueryParameter(CONST_USER_ID) ?: ""
                         val cal = Calendar.getInstance()
@@ -82,7 +84,7 @@ class MainActivity : AppCompatActivity() {
                         )
 
                         APIService.getBaseUrl(url)
-                            .getUserData(url,String.format("%s %s", token_type, accessToken))
+                            .getUserData(url,String.format("%s %s", tokenType, accessToken))
                             .enqueue(object : Callback<UserData> {
                                 override fun onFailure(call: Call<UserData>, t: Throwable) {
                                 }
@@ -92,6 +94,8 @@ class MainActivity : AppCompatActivity() {
                                     response: Response<UserData>
                                 ) {
                                     Log.e("USER_DATA", response.body().toString())
+                                    
+                                    setUserData(response.body())
                                 }
                             })
                     }
@@ -103,5 +107,26 @@ class MainActivity : AppCompatActivity() {
         }
 
         web_View.loadUrl(EXTRA_AUTH_URL)
+    }
+
+    private fun setUserData(body: UserData?) {
+
+        web_View.visibility = View.GONE
+        sv_userData.visibility = View.VISIBLE
+
+        tv_activeScore.text = body?.summary?.activeScore
+        tv_activityCalories.text = body?.summary?.activityCalories
+        tv_caloriesBMR.text = body?.summary?.caloriesBMR
+        tv_caloriesOut.text = body?.summary?.caloriesOut
+
+        tv_fairlyActiveMinutes.text = body?.fairlyActiveMinutes
+        tv_lightlyActiveMinutes.text = body?.lightlyActiveMinutes
+        tv_marginalCalories.text = body?.marginalCalories
+        tv_sedentaryMinutes.text = body?.sedentaryMinutes
+        tv_steps.text = body?.steps
+        tv_veryActiveMinutes.text = body?.veryActiveMinutes
+
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.adapter = DistanceAdapter(body?.summary?.distances ?: arrayListOf())
     }
 }
