@@ -42,7 +42,7 @@ class MainActivity : AppCompatActivity() {
                 request: String?
             ): Boolean {
                 if ((request ?: "").startsWith(REDIRECT_URL)) {
-                    val uri = Uri.parse(request)
+                    var uri = Uri.parse(request)
 
                     val code = uri.getQueryParameter(CONST_CODE) ?: ""
 
@@ -68,20 +68,22 @@ class MainActivity : AppCompatActivity() {
                                 }
                             })
                     } else {
+                        if(uri.toString().contains("#"))
+                            uri = Uri.parse(uri.toString().replace("#","?"))
                         val accessToken = uri.getQueryParameter(CONST_ACCESS_TOKEN) ?: ""
                         val token_type = uri.getQueryParameter(CONST_TOKEN_TYPE) ?: ""
 
                         val userId = uri.getQueryParameter(CONST_USER_ID) ?: ""
                         val cal = Calendar.getInstance()
-                        val format = SimpleDateFormat("yyyy-mm-dd")
+                        val format = SimpleDateFormat("yyyy-MM-dd")
                         val date = format.format(cal.time)
 
                         val url = String.format(
                             "%s%s%s%s%s",
-                            "https://api.fitbit.com/1/user/", userId, "/activities/date/", date,"/"
+                            "https://api.fitbit.com/1/user/", userId, "/activities/date/", date,".json"
                         )
 
-                        APIService.getBaseUrl(url)
+                        APIService.getBaseUrl("https://api.fitbit.com/1/user/")
                             .getUserData(url,String.format("%s %s", token_type, accessToken))
                             .enqueue(object : Callback<UserData> {
                                 override fun onFailure(call: Call<UserData>, t: Throwable) {
