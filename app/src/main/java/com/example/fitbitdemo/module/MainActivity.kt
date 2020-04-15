@@ -1,6 +1,6 @@
-package com.example.fitbitdemo
+package com.example.fitbitdemo.module
 
-import android.content.DialogInterface
+import android.annotation.SuppressLint
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.fitbitdemo.Model.AccessToken
 import com.example.fitbitdemo.Model.UserData
+import com.example.fitbitdemo.R
 import com.example.fitbitdemo.lib.APIService
 import com.example.fitbitdemo.lib.Constants
 import kotlinx.android.synthetic.main.activity_main.*
@@ -27,13 +28,13 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_AUTH_URL =
             "https://www.fitbit.com/oauth2/authorize?response_type=token&client_id=22BNZ7&redirect_uri=https%3A%2F%2Fmagnetoitsolutions.com&scope=activity%20heartrate%20location%20nutrition%20profile%20settings%20sleep%20social&expires_in=604800"
-        const val REDIRECT_URL = "https://magnetoitsolutions.com"
         const val CONST_CODE = "code"
         const val CONST_ACCESS_TOKEN = "access_token"
         const val CONST_USER_ID = "user_id"
         const val CONST_TOKEN_TYPE = "token_type"
     }
 
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -53,19 +54,17 @@ class MainActivity : AppCompatActivity() {
                 view: WebView?,
                 request: String?
             ): Boolean {
-                if ((request ?: "").startsWith(REDIRECT_URL)) {
+                if ((request ?: "").startsWith(Constants.REDIRECT_URL)) {
                     var uri = Uri.parse(request)
 
                     val code = uri.getQueryParameter(CONST_CODE) ?: ""
-
-                    Log.e("CODE_AUTH", code)
 
                     if (code.isNotBlank()) {
                         APIService.getAuthBaseUrl("https://api.fitbit.com/oauth2/")
                             .getAccessToken(
                                 Constants.CLIENT_ID,
                                 Constants.GRANT_TYPE,
-                                REDIRECT_URL,
+                                Constants.REDIRECT_URL,
                                 code
                             ).enqueue(object : Callback<AccessToken> {
                                 override fun onFailure(call: Call<AccessToken>, t: Throwable) {
@@ -76,35 +75,11 @@ class MainActivity : AppCompatActivity() {
                                     call: Call<AccessToken>,
                                     response: Response<AccessToken>
                                 ) {
-                                    Log.e("SUCESSSSSs", response.body()?.access_token ?: "")
-
-                                    val cal = Calendar.getInstance()
-                                    val format = SimpleDateFormat("yyyy-MM-dd")
-                                    val date = format.format(cal.time)
-                                    val url = String.format(
-                                        "%s%s%s%s%s",
-                                        "https://api.fitbit.com/1/user/",
-                                        response.body()?.user_id,
-                                        "/activities/date/",
-                                        date,
-                                        ".json"
+                                    getUserData(
+                                        response.body()?.access_token.toString(),
+                                        response.body()?.token_type.toString(),
+                                        response.body()?.user_id.toString()
                                     )
-
-                                    APIService.getBaseUrl("https://api.fitbit.com/1/user/")
-                                        .getUserData(url, String.format("%s %s", response.body()?.token_type, response.body()?.access_token))
-                                        .enqueue(object : Callback<UserData> {
-                                            override fun onFailure(call: Call<UserData>, t: Throwable) {
-                                            }
-
-                                            override fun onResponse(
-                                                call: Call<UserData>,
-                                                response: Response<UserData>
-                                            ) {
-                                                Log.e("USER_DATA", response.body().toString())
-
-                                                setUserData(response.body())
-                                            }
-                                        })
                                 }
                             })
                     } else {
@@ -114,36 +89,10 @@ class MainActivity : AppCompatActivity() {
                         val tokenType = uri.getQueryParameter(CONST_TOKEN_TYPE) ?: ""
 
                         val userId = uri.getQueryParameter(CONST_USER_ID) ?: ""
-                        val cal = Calendar.getInstance()
-                        val format = SimpleDateFormat("yyyy-MM-dd")
-                        val date = format.format(cal.time)
 
-                        val url = String.format(
-                            "%s%s%s%s%s",
-                            "https://api.fitbit.com/1/user/",
-                            userId,
-                            "/activities/date/",
-                            date,
-                            ".json"
-                        )
-
-                        APIService.getBaseUrl("https://api.fitbit.com/1/user/")
-                            .getUserData(url, String.format("%s %s", tokenType, accessToken))
-                            .enqueue(object : Callback<UserData> {
-                                override fun onFailure(call: Call<UserData>, t: Throwable) {
-                                }
-
-                                override fun onResponse(
-                                    call: Call<UserData>,
-                                    response: Response<UserData>
-                                ) {
-                                    Log.e("USER_DATA", response.body().toString())
-
-                                    setUserData(response.body())
-                                }
-                            })
+                        getUserData(accessToken, tokenType, userId)
                     }
-                }else{
+                } else {
                     if (!Constants.isNetworkAvailable(applicationContext)) {
                         showNoNetworkDialog()
                     } else {
@@ -161,6 +110,37 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun getUserData(accessToken: String, tokenType: String, userId: String) {
+        val cal = Calendar.getInstance()
+        val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val date = format.format(cal.time)
+
+        val url = String.format(
+            "%s%s%s%s%s",
+            "https://api.fitbit.com/1/user/",
+            userId,
+            "/activities/date/",
+            date,
+            ".json"
+        )
+
+        APIService.getBaseUrl("https://api.fitbit.com/1/user/")
+            .getUserData(url, String.format("%s %s", tokenType, accessToken))
+            .enqueue(object : Callback<UserData> {
+                override fun onFailure(call: Call<UserData>, t: Throwable) {
+                }
+
+                override fun onResponse(
+                    call: Call<UserData>,
+                    response: Response<UserData>
+                ) {
+                    Log.e("USER_DATA", response.body().toString())
+
+                    setUserData(response.body())
+                }
+            })
+    }
+
     private fun setUserData(body: UserData?) {
 
         rl_webView.visibility = View.GONE
@@ -175,7 +155,7 @@ class MainActivity : AppCompatActivity() {
             String.format("%s %s", "Activity Calories Out", body?.summary?.caloriesOut)
 
         tv_fairlyActiveMinutes.text =
-            String.format("%s %s", "Faily Activity Minutes", body?.fairlyActiveMinutes)
+            String.format("%s %s", "Fairly Activity Minutes", body?.fairlyActiveMinutes)
         tv_lightlyActiveMinutes.text =
             String.format("%s %s", "Lightly Activity Minutes", body?.lightlyActiveMinutes)
         tv_marginalCalories.text =
@@ -187,26 +167,28 @@ class MainActivity : AppCompatActivity() {
             String.format("%s %s", "very Activity Minutes", body?.veryActiveMinutes)
 
         recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = DistanceAdapter(body?.summary?.distances ?: arrayListOf())
+        recyclerView.adapter = DistanceAdapter(
+            body?.summary?.distances ?: arrayListOf()
+        )
     }
 
     fun showNoNetworkDialog() {
         AlertDialog.Builder(this)
             .setTitle("Network")
             .setMessage("Please check your network connection?")
-            // Specifying a listener allows you to take an action before dismissing the dialog.
-// The dialog is automatically dismissed when a dialog button is clicked.
-            .setPositiveButton(android.R.string.yes,
-                DialogInterface.OnClickListener { dialog, which ->
-                    // Continue with delete operation
-                }) // A null listener allows the button to dismiss the dialog and take no further action.
-            .setNegativeButton("Retry", DialogInterface.OnClickListener { dialog, which ->
+
+            .setPositiveButton(
+                "Cancel"
+            ) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setNegativeButton("Retry") { _, _ ->
                 if (!Constants.isNetworkAvailable(this)) {
                     showNoNetworkDialog()
                 } else {
                     web_View.loadUrl(EXTRA_AUTH_URL)
                 }
-            })
+            }
             .show()
     }
 }

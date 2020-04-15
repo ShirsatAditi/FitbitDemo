@@ -1,10 +1,11 @@
-package com.example.fitbitdemo
+package com.example.fitbitdemo.module
 
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.fitbitdemo.Model.Distance
+import com.example.fitbitdemo.R
 import kotlinx.android.synthetic.main.row_distances.view.*
 
 /**
@@ -17,7 +18,13 @@ class DistanceAdapter(private val mList: ArrayList<Distance>) :
     RecyclerView.Adapter<DistanceAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        return ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.row_distances,parent,false))
+        return ViewHolder(
+            LayoutInflater.from(parent.context).inflate(
+                R.layout.row_distances,
+                parent,
+                false
+            )
+        )
     }
 
     override fun getItemCount(): Int {
